@@ -34,11 +34,11 @@ sysinfo
 
 Options:
 ```sh
-sysinfo [-Chnv]
-    -C          disable color output
-    -h          display help
-    -n          disable ASCII art
-    -v          display version
+usage: sysinfo [-Chnv]
+    -C        disable color output
+    -h        display help
+    -n        disable ASCII art
+    -v        display version
 ```
 
 Color output can also be disabled by setting the `NO_COLOR` environment variable.
