@@ -37,7 +37,7 @@ PROG_NAME="$(basename "$0")"
 
 usage() {
   cat << EOF
-usage: $(basename "$0") [-Chnv]
+usage: $PROG_NAME [-Chnv]
     -C        disable color output
     -h        display help
     -n        disable ASCII art
