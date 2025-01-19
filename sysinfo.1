@@ -1,0 +1,172 @@
+.Dd January 19, 2025
+.Dt SYSINFO 1
+.Os
+.Sh NAME
+.Nm sysinfo
+.Nd display essential system information in a human readable form on OpenBSD
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+The
+.Nm
+utility displays comprehensive system information about an OpenBSD
+installation, accompanied by an ASCII art representation of Puffy, the OpenBSD
+mascot.
+All information is collected using native OpenBSD commands and presented in a
+human-readable format.
+.Pp
+The output includes color-coded sections when running in a compatible terminal,
+with distinct colors for labels (yellow), username (green), hostname (cyan),
+and general information (default).
+.Sh OUTPUT
+The following information is presented:
+.Bl -tag -width Ds
+.It Sy User@Hostname
+Current user and system hostname
+.It Sy OS
+Operating system version from
+.Xr uname 1
+with -sr flags
+.It Sy Kernel
+Kernel version from
+.Xr uname 1
+with -v flag
+.It Sy Machine
+Hardware architecture and virtualization status (if detected)
+.It Sy CPU
+Processor model and number of online CPU cores
+.It Sy GPU
+Graphics processor information (when available)
+.It Sy Memory
+Current memory usage showing used/total space and percentage
+.It Sy Disk
+Root partition usage showing used/total space and percentage
+.It Sy Shell
+Current user's shell
+.It Sy Uptime
+System uptime in a condensed format (e.g., "5d" or "2h 30m")
+.It Sy Packages
+Total number of installed packages
+.It Sy WM
+Current window manager or desktop environment (when available)
+.El
+.Sh DEPENDENCIES
+.Bl -dash -compact
+.It
+bc - required for memory size calculations
+.It
+tput - optional, used for color output
+.It
+wmctrl - optional, used for window manager detection
+.It
+pcidump - may be used for GPU detection
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev DISPLAY
+Used to detect X11 session presence
+.It Ev WAYLAND_DISPLAY
+Used to detect Wayland session presence
+.It Ev XDG_CURRENT_DESKTOP
+Desktop environment identification
+.It Ev WINDOWMANAGER
+Window manager path
+.It Ev SHELL
+User's shell
+.It Ev USER
+Username for display
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility currently has no explicit error handling and always exits with status
+0.
+Some commands used internally may produce error messages on stderr.
+.Sh EXAMPLES
+Display system information:
+.Pp
+.Dl $ sysinfo
+.Pp
+Save system information to a file:
+.Pp
+.Dl $ sysinfo > system_info.txt
+.Pp
+Compare system information before and after system update:
+.Pp
+.Dl $ sysinfo > before_update.txt
+.Dl $ doas syspatch
+.Dl $ sysinfo > after_update.txt
+.Dl $ diff before_update.txt after_update.txt
+.Sh IMPLEMENTATION NOTES
+.Ss Memory Display
+Memory values are automatically scaled (B, K, M, G) with one decimal
+place precision. Physical memory is obtained via
+.Xr sysctl 8 ,
+while used memory is calculated from
+.Xr top 1
+output.
+.Ss Virtualization Detection
+Supports detection of:
+.Bl -dash -compact
+.It
+VMM (OpenBSD's hypervisor)
+.It
+bhyve
+.It
+Hyper-V
+.It
+Xen
+.It
+QEMU/KVM
+.It
+VMware
+.It
+VirtualBox
+.It
+Parallels
+.El
+.Ss Window Manager Detection
+Uses a three-tier detection approach:
+.Bl -enum -compact
+.It
+Environment variables (WINDOWMANAGER, XDG_CURRENT_DESKTOP)
+.It
+wmctrl output if available
+.It
+Process list scanning for common window managers
+.El
+.Sh SEE ALSO
+.Xr bc 1 ,
+.Xr df 1 ,
+.Xr dmesg 8 ,
+.Xr hostname 1 ,
+.Xr pcidump 8 ,
+.Xr pkg_info 1 ,
+.Xr ps 1 ,
+.Xr sysctl 8 ,
+.Xr top 1 ,
+.Xr tput 1 ,
+.Xr uname 1 ,
+.Xr uptime 1 ,
+.Xr wmctrl 1
+.Sh HISTORY
+The
+.Nm
+utility first appeared as a GitHub project by Szenesis in 2023.
+It was later modified by Dair Aidarkhanov in 2024 to improve hardware
+detection, add fallback values, enhance window manager detection, and refine
+the ASCII art.
+.Sh AUTHORS
+.An Szenesis Aq Mt https://github.com/Szenesis/sysinfo
+.Pp
+Modified by
+.An Dair Aidarkhanov
+.Sh NOTES
+.Bl -dash -compact
+.It
+Color output requires a terminal that supports ANSI escape sequences
+.It
+All size values are rounded to one decimal place
+.It
+Uptime format changes based on duration (minutes, hours, or days)
+.El

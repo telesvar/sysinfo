@@ -1,0 +1,203 @@
+#!/bin/sh
+
+: '
+MIT License
+
+Copyright (c) 2023 Szenesis
+Copyright (c) 2024 Dair Aidarkhanov
+
+Original work by Szenesis (https://github.com/Szenesis/sysinfo), modified by
+Dair Aidarkhanov.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+'
+
+###############################################################################
+# Configuration
+###############################################################################
+
+# Terminal colors
+setup_colors() {
+  if [ -x "$(command -v tput)" ]; then
+    bold="$(tput bold 2>/dev/null)"
+    reset="$(tput sgr0 2>/dev/null)"
+    yellow="$(tput setaf 3 2>/dev/null)"
+    green="$(tput setaf 2 2>/dev/null)"
+    cyan="$(tput setaf 6 2>/dev/null)"
+  else
+    bold="" reset="" yellow="" green="" cyan=""
+  fi
+
+  # Color scheme
+  lc="${reset}${bold}${yellow}"  # labels
+  uc="${reset}${bold}${green}"   # username
+  hc="${reset}${bold}${cyan}"    # hostname
+  ic="${reset}"                  # information
+}
+
+###############################################################################
+# System Information Collectors
+###############################################################################
+
+get_wm() {
+  [ -n "$WAYLAND_DISPLAY" ] && {
+    [ -n "$XDG_CURRENT_DESKTOP" ] && echo "$XDG_CURRENT_DESKTOP" || echo 'Wayland'
+    return
+  }
+
+  [ -n "$DISPLAY" ] || return
+
+  [ -n "$WINDOWMANAGER" ] && {
+    basename "$WINDOWMANAGER"
+    return
+  }
+
+  command -v wmctrl >/dev/null 2>&1 && {
+    wmctrl -m 2>/dev/null | awk '/Name:/ {print $2}'
+    return
+  }
+
+  ps -aux | grep -E -m 1 '\b(cwm|fvwm|twm|dwm|i3|openbox|fluxbox|bspwm|awesome|xfwm4|icewm|jwm)\b' \
+    | grep -v grep | awk '{print $11}' | sed 's/.*\///'
+}
+
+get_uptime() {
+  local uptime_str=$(uptime)
+  local time_str=$(echo "$uptime_str" | sed 's/.*up *\([^,]*\),.*/\1/')
+
+  if echo "$time_str" | grep -q 'day'; then
+    local days=$(echo "$time_str" | grep -o '[0-9]* day' | awk '{print $1}')
+    printf '%dd' "$days"
+  elif echo "$time_str" | grep -q ':'; then
+    local hours=$(echo "$time_str" | awk -F: '{print $1}' | tr -d ' ')
+    local mins=$(echo "$time_str" | awk -F: '{print $2}' | tr -d ' ')
+    printf '%dh %dm' "$hours" "$mins"
+  else
+    local mins=$(echo "$time_str" | tr -d ' ' | grep -o '[0-9]*')
+    printf '%dm' "$mins"
+  fi
+}
+
+get_gpu() {
+  dmesg | grep -i 'gpu' | awk -F'"' '{print $2}' | head -1 \
+    || doas pcidump | grep -i 'gpu' \
+      | awk -F':' '{gsub(/^ +/, "", $NF); print $NF}'
+}
+
+format_size() {
+  local size="$1"
+  if [ "$size" -ge $((1024 * 1024 * 1024)) ]; then
+    printf '%.1fG' "$(echo "scale=1; $size/1024/1024/1024" | bc)"
+  elif [ "$size" -ge $((1024 * 1024)) ]; then
+    printf '%.1fM' "$(echo "scale=1; $size/1024/1024" | bc)"
+  elif [ "$size" -ge 1024 ]; then
+    printf '%.1fK' "$(echo "scale=1; $size/1024" | bc)"
+  else
+    printf '%dB' "$size"
+  fi
+}
+
+get_memory() {
+  local total="$(sysctl -n hw.physmem)"
+  local stats="$(top -b | grep '^Memory:')"
+  local used="$(echo "$stats" | awk '{gsub(/[A-Z]/, "", $3); print $3 * 1024 * 1024}')"
+
+  if [ "$total" -gt 0 ] && [ -n "$used" ]; then
+    local percent="$((used * 100 / total))"
+    printf "%s / %s (%d%%)" "$(format_size "$used")" "$(format_size "$total")" "$percent"
+  fi
+}
+
+get_vm_type() {
+  local mappings='hypervisor:HyperV vmm:VMM bhyve:bhyve xen:Xen qemu:QEMU \
+kvm:KVM vmware:VMware virtualbox:VirtualBox parallels:Parallels'
+
+  local dmesg_out="$(dmesg)"
+
+  echo "$mappings" | tr ' ' '\n' | while IFS=: read -r pattern name; do
+    if echo "$dmesg_out" | grep -qi "$pattern"; then
+      echo "$name"
+      return 0
+    fi
+  done
+
+  if sysctl -n hw.model | grep -qi 'virtual'; then
+    echo 'Virtual'
+  fi
+}
+
+###############################################################################
+# Main Information Collection
+###############################################################################
+
+collect_system_info() {
+  # Basic system information
+  User="$USER"
+  Hostname="$(hostname)"
+  OS="$(uname -sr)"
+  Kernel="$(uname -v)"
+  Machine="$(sysctl -n hw.machine)"
+  VM_Type="$(get_vm_type)"
+
+  # Hardware information
+  CPU="$(sysctl -n hw.model)"
+  CPU_Cores="$(sysctl -n hw.ncpuonline)"
+  GPU="$(get_gpu)"
+  RAM="$(get_memory)"
+
+  # System status
+  Shell="$(basename "$SHELL")"
+  Uptime="$(get_uptime)"
+  Packages="$(pkg_info -q | wc -l | tr -d ' ')"
+  Disk="$(df -h / | awk 'NR==2 {printf "%s / %s (%s)", $3, $2, $5}')"
+  WM="$(get_wm)"
+}
+
+###############################################################################
+# Display Functions
+###############################################################################
+
+print_system_info() {
+  cat << EOF
+                      ${uc}$User${reset}${bold}@${hc}$Hostname${reset}
+      _____           ${lc}OS${ic}: $OS
+   \\-      -/    o    ${lc}Kernel${ic}: $Kernel
+\\_/          \\  o     ${lc}Machine${ic}: $Machine${VM_Type:+ ($VM_Type)}
+|         O O |  o    ${lc}CPU${ic}: $CPU ($CPU_Cores*)
+|_  <    )  3 ) o     ${lc}GPU${ic}: ${GPU:--}
+/ \\          /        ${lc}Memory${ic}: $RAM
+   /-_____ -\\         ${lc}Disk${ic}${bold} (${lc}/${ic}${bold})${ic}: $Disk
+                      ${lc}Shell${ic}: $Shell
+                      ${lc}Uptime${ic}: $Uptime
+                      ${lc}Packages${ic}: $Packages${WM:+
+                      ${lc}WM${ic}: $WM}
+EOF
+}
+
+###############################################################################
+# Main Execution
+###############################################################################
+
+main() {
+  setup_colors
+  collect_system_info
+  print_system_info
+}
+
+main
