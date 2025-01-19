@@ -32,16 +32,35 @@ SOFTWARE.
 # Configuration
 ###############################################################################
 
+VERSION='0.1.0'
+PROG_NAME="$(basename "$0")"
+
+usage() {
+  cat << EOF
+usage: $(basename "$0") [-Chnv]
+    -C          disable color output
+    -h          display help
+    -n          disable ASCII art
+    -v          display version
+EOF
+  exit "${1:-0}"
+}
+
+version() {
+  echo "sysinfo-$VERSION"
+  exit 0
+}
+
 # Terminal colors
 setup_colors() {
-  if [ -x "$(command -v tput)" ]; then
+  if [ "$USE_COLOR" -eq 1 ] && [ -t 1 ] && [ -x "$(command -v tput)" ]; then
     bold="$(tput bold 2>/dev/null)"
     reset="$(tput sgr0 2>/dev/null)"
     yellow="$(tput setaf 3 2>/dev/null)"
     green="$(tput setaf 2 2>/dev/null)"
     cyan="$(tput setaf 6 2>/dev/null)"
   else
-    bold="" reset="" yellow="" green="" cyan=""
+    bold='' reset='' yellow='' green='' cyan=''
   fi
 
   # Color scheme
@@ -56,24 +75,23 @@ setup_colors() {
 ###############################################################################
 
 get_wm() {
+  # Check Wayland first
   [ -n "$WAYLAND_DISPLAY" ] && {
     [ -n "$XDG_CURRENT_DESKTOP" ] && echo "$XDG_CURRENT_DESKTOP" || echo 'Wayland'
     return
   }
 
+  # No X11/Wayland running
   [ -n "$DISPLAY" ] || return
 
-  [ -n "$WINDOWMANAGER" ] && {
-    basename "$WINDOWMANAGER"
+  # Check common WM-specific environment variables
+  [ -n "$WINDOW_MANAGER" ] && {
+    basename "$WINDOW_MANAGER"
     return
   }
 
-  command -v wmctrl >/dev/null 2>&1 && {
-    wmctrl -m 2>/dev/null | awk '/Name:/ {print $2}'
-    return
-  }
-
-  ps -aux | grep -E -m 1 '\b(cwm|fvwm|twm|dwm|i3|openbox|fluxbox|bspwm|awesome|xfwm4|icewm|jwm)\b' \
+  # Try process list, prioritizing OpenBSD-common WMs
+  ps aux | grep -E -m 1 '\b(cwm|fvwm|twm|dwm|xenodm|i3|openbox|fluxbox|bspwm|awesome|xfwm4|icewm)\b' \
     | grep -v grep | awk '{print $11}' | sed 's/.*\///'
 }
 
@@ -95,9 +113,19 @@ get_uptime() {
 }
 
 get_gpu() {
-  dmesg | grep -i 'gpu' | awk -F'"' '{print $2}' | head -1 \
-    || doas pcidump | grep -i 'gpu' \
-      | awk -F':' '{gsub(/^ +/, "", $NF); print $NF}'
+  local gpu=''
+
+  # Try sysctl first
+  gpu=$(sysctl -n hw.vendor hw.product 2>/dev/null | paste -d ' ' - - | grep -i 'gpu')
+  [ -n "$gpu" ] && { echo "$gpu"; return; }
+
+  # Check dmesg for GPU matches
+  gpu=$(dmesg | grep -i 'gpu' | awk -F'"' '{print $2}' | head -1)
+  [ -n "$gpu" ] && { echo "$gpu"; return; }
+
+  # Fallback to driver detection
+  gpu=$(dmesg | grep -E 'drm[0-9]+ at|radeon[0-9]+ at|nvidia[0-9]+ at|intel[0-9]+ at|amdgpu[0-9]+ at' | awk -F'"' '{print $2}' | head -1)
+  [ -n "$gpu" ] && { echo "$gpu"; return; }
 }
 
 format_size() {
@@ -120,14 +148,13 @@ get_memory() {
 
   if [ "$total" -gt 0 ] && [ -n "$used" ]; then
     local percent="$((used * 100 / total))"
-    printf "%s / %s (%d%%)" "$(format_size "$used")" "$(format_size "$total")" "$percent"
+    printf '%s / %s (%d%%)' "$(format_size "$used")" "$(format_size "$total")" "$percent"
   fi
 }
 
 get_vm_type() {
   local mappings='hypervisor:HyperV vmm:VMM bhyve:bhyve xen:Xen qemu:QEMU \
 kvm:KVM vmware:VMware virtualbox:VirtualBox parallels:Parallels'
-
   local dmesg_out="$(dmesg)"
 
   echo "$mappings" | tr ' ' '\n' | while IFS=: read -r pattern name; do
@@ -174,7 +201,8 @@ collect_system_info() {
 ###############################################################################
 
 print_system_info() {
-  cat << EOF
+  if [ "$NO_ASCII" -eq 0 ]; then
+    cat << EOF
                       ${uc}$User${reset}${bold}@${hc}$Hostname${reset}
       _____           ${lc}OS${ic}: $OS
    \\-      -/    o    ${lc}Kernel${ic}: $Kernel
@@ -182,12 +210,28 @@ print_system_info() {
 |         O O |  o    ${lc}CPU${ic}: $CPU ($CPU_Cores*)
 |_  <    )  3 ) o     ${lc}GPU${ic}: ${GPU:--}
 / \\          /        ${lc}Memory${ic}: $RAM
-   /-_____ -\\         ${lc}Disk${ic}${bold} (${lc}/${ic}${bold})${ic}: $Disk
+   /-_____ -\\         ${lc}Disk${ic} ${bold}(${lc}/${ic}${bold})${ic}: $Disk
                       ${lc}Shell${ic}: $Shell
                       ${lc}Uptime${ic}: $Uptime
                       ${lc}Packages${ic}: $Packages${WM:+
                       ${lc}WM${ic}: $WM}
 EOF
+  else
+    cat << EOF
+${uc}$User${reset}${bold}@${hc}$Hostname${reset}
+${lc}OS${ic}: $OS
+${lc}Kernel${ic}: $Kernel
+${lc}Machine${ic}: $Machine${VM_Type:+ ($VM_Type)}
+${lc}CPU${ic}: $CPU ($CPU_Cores*)
+${lc}GPU${ic}: ${GPU:--}
+${lc}Memory${ic}: $RAM
+${lc}Disk${ic}${bold} (${lc}/${ic}${bold})${ic}: $Disk
+${lc}Shell${ic}: $Shell
+${lc}Uptime${ic}: $Uptime
+${lc}Packages${ic}: $Packages${WM:+
+${lc}WM${ic}: $WM}
+EOF
+  fi
 }
 
 ###############################################################################
@@ -195,9 +239,27 @@ EOF
 ###############################################################################
 
 main() {
+  if [ -n "${NO_COLOR+x}" ]; then
+    USE_COLOR=0
+  else
+    USE_COLOR=1
+  fi
+  NO_ASCII=0
+
+  while getopts 'Chnv' opt; do
+    case "$opt" in
+      C) USE_COLOR=0 ;;
+      h) usage ;;
+      n) NO_ASCII=1 ;;
+      v) version ;;
+      *) usage 1 ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+
   setup_colors
   collect_system_info
   print_system_info
 }
 
-main
+main "$@"

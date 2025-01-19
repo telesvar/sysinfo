@@ -1,17 +1,16 @@
 # sysinfo
 
-Display essential system information in a human readable form on OpenBSD.
+Display OpenBSD system information.
 
 ![Screenshot](assets/screen.png)
 
 ## Features
 
-- Displays system information in a clean, organized format
-- Shows ASCII art of Puffy, the OpenBSD mascot
-- Color-coded output for better readability
+- System information display with Puffy ASCII art
 - Hardware detection including virtualization environment
-- Memory and disk usage with human-readable format
-- Window manager detection
+- Memory and disk usage with scaled units
+- Window manager detection for X11 and Wayland
+- Color output with ANSI terminal support
 
 ## Installation
 
@@ -23,27 +22,38 @@ got clone https://github.com/telesvar/sysinfo.git
 got checkout sysinfo.git/ sysinfo/
 
 cd sysinfo
-
-# Install
 doas make install
-
-# Uninstall
-doas make uninstall
 ```
 
 ## Usage
 
-Simply run:
-
+Display system information:
 ```sh
 sysinfo
 ```
 
+Options:
+```sh
+sysinfo [-Chnv]
+    -C          disable color output
+    -h          display help
+    -n          disable ASCII art
+    -v          display version
+```
+
+Color output can also be disabled by setting the NO_COLOR environment variable.
+
+## Uninstallation
+
+```sh
+doas make uninstall
+```
+
 ## License
 
-MIT License. See [LICENSE](LICENSE) file for details.
+MIT License.  See [LICENSE](LICENSE) file for details.
 
-## Credits
+## Authors
 
 - Original work by [Szenesis](https://github.com/Szenesis/sysinfo)
 - Modified by Dair Aidarkhanov
