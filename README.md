@@ -41,7 +41,7 @@ sysinfo [-Chnv]
     -v          display version
 ```
 
-Color output can also be disabled by setting the NO_COLOR environment variable.
+Color output can also be disabled by setting the `NO_COLOR` environment variable.
 
 ## Uninstallation
 
