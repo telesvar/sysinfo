@@ -18,6 +18,10 @@ Display essential system information in a human readable form on OpenBSD.
 ```sh
 # Clone the repository
 git clone https://github.com/telesvar/sysinfo.git
+# or with got
+got clone https://github.com/telesvar/sysinfo.git
+got checkout sysinfo.git/ sysinfo/
+
 cd sysinfo
 
 # Install
