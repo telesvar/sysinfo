@@ -96,21 +96,21 @@ get_wm() {
 }
 
 get_uptime() {
-  local uptime_str=$(uptime)
-  local time_str=$(echo "$uptime_str" | sed 's/.*up *\([^,]*\),.*/\1/')
+  local uptime_str="$(uptime)"
+  local time_str="$(echo "$uptime_str" | sed 's/.*up *\([^,]*\),.*/\1/')"
 
   if echo "$time_str" | grep -q 'day'; then
-    local days=$(echo "$time_str" | grep -o '[0-9]* day' | awk '{print $1}')
+    local days="$(echo "$time_str" | grep -o '[0-9]* day' | awk '{print $1}')"
     printf '%dd' "$days"
   elif echo "$time_str" | grep -q ':'; then
-    local hours=$(echo "$time_str" | awk -F: '{print $1}' | tr -d ' ')
-    local mins=$(echo "$time_str" | awk -F: '{print $2}' | tr -d ' ')
+    local hours="$(echo "$time_str" | awk -F: '{print $1}' | tr -d ' ')"
+    local mins="$(echo "$time_str" | awk -F: '{print $2}' | tr -d ' ')"
     printf '%dh %dm' "$hours" "$mins"
   elif echo "$time_str" | grep -q 'sec'; then
-    local secs=$(echo "$time_str" | grep -o '[0-9]*' | head -1)
+    local secs="$(echo "$time_str" | grep -o '[0-9]*' | head -1)"
     printf '%ds' "$secs"
   else
-    local mins=$(echo "$time_str" | tr -d ' ' | grep -o '[0-9]*')
+    local mins="$(echo "$time_str" | tr -d ' ' | grep -o '[0-9]*')"
     printf '%dm' "$mins"
   fi
 }
@@ -119,15 +119,15 @@ get_gpu() {
   local gpu=''
 
   # Try sysctl first
-  gpu=$(sysctl -n hw.vendor hw.product 2>/dev/null | paste -d ' ' - - | grep -i 'gpu')
+  gpu="$(sysctl -n hw.vendor hw.product 2>/dev/null | paste -d ' ' - - | grep -i 'gpu')"
   [ -n "$gpu" ] && { echo "$gpu"; return; }
 
   # Check dmesg for GPU matches
-  gpu=$(dmesg | grep -i 'gpu' | awk -F'"' '{print $2}' | head -1)
+  gpu="$(dmesg | grep -i 'gpu' | awk -F'"' '{print $2}' | head -1)"
   [ -n "$gpu" ] && { echo "$gpu"; return; }
 
   # Fallback to driver detection
-  gpu=$(dmesg | grep -E 'drm[0-9]+ at|radeon[0-9]+ at|nvidia[0-9]+ at|intel[0-9]+ at|amdgpu[0-9]+ at' | awk -F'"' '{print $2}' | head -1)
+  gpu="$(dmesg | grep -E 'drm[0-9]+ at|radeon[0-9]+ at|nvidia[0-9]+ at|intel[0-9]+ at|amdgpu[0-9]+ at' | awk -F'"' '{print $2}' | head -1)"
   [ -n "$gpu" ] && { echo "$gpu"; return; }
 }
 
