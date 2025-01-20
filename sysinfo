@@ -102,7 +102,8 @@ get_uptime() {
   if echo "$uptime_str" | grep -q ' up '; then
     time_str="$(echo "$uptime_str" | sed -E 's/.*up[[:space:]]*([^,]*).*/\1/')"
   else
-    time_str="$(echo "$uptime_str" | sed -E 's/[^,]*,[[:space:]]*(.*)/\1/')"
+    # Skip past the time prefix (both 12h and 24h formats) and get everything before the first comma
+    time_str="$(echo "$uptime_str" | sed -E 's/^[^0-9]*[0-9]+:[0-9]+(AM|PM|)[[:space:]]*([^,]*).*/\2/')"
   fi
 
   # Handle days
@@ -127,7 +128,7 @@ get_uptime() {
     return
   fi
 
-  # Handle seconds 
+  # Handle seconds
   if echo "$time_str" | grep -qE '[0-9]+[[:space:]]*(sec|secs|second|seconds)'; then
     local num="$(echo "$time_str" | grep -oE '[0-9]+[[:space:]]*(sec|secs|second|seconds)' | grep -oE '[0-9]+')"
     printf '%ds' "$num"
