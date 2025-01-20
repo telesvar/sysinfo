@@ -106,6 +106,9 @@ get_uptime() {
     local hours=$(echo "$time_str" | awk -F: '{print $1}' | tr -d ' ')
     local mins=$(echo "$time_str" | awk -F: '{print $2}' | tr -d ' ')
     printf '%dh %dm' "$hours" "$mins"
+  elif echo "$time_str" | grep -q 'sec'; then
+    local secs=$(echo "$time_str" | grep -o '[0-9]*' | head -1)
+    printf '%ds' "$secs"
   else
     local mins=$(echo "$time_str" | tr -d ' ' | grep -o '[0-9]*')
     printf '%dm' "$mins"
