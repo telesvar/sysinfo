@@ -32,7 +32,7 @@ SOFTWARE.
 # Configuration
 ###############################################################################
 
-VERSION='0.1.0'
+VERSION='0.1.0-testing'
 PROG_NAME="$(basename "$0")"
 
 usage() {
