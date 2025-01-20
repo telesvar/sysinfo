@@ -102,8 +102,8 @@ get_uptime() {
   if echo "$uptime_str" | grep -q ' up '; then
     time_str="$(echo "$uptime_str" | sed -E 's/.*up[[:space:]]*([^,]*).*/\1/')"
   else
-    # Skip past the time prefix (both 12h and 24h formats) and get everything before the first comma
-    time_str="$(echo "$uptime_str" | sed -E 's/^[^0-9]*[0-9]+:[0-9]+(AM|PM|)[[:space:]]*([^,]*).*/\2/')"
+    # Skip past the time prefix and get everything before the first comma
+    time_str="$(echo "$uptime_str" | sed -E 's/^[^0-9]*[0-9]+:[0-9]+(PM|AM)?[[:space:]]*([^,]*).*/\2/')"
   fi
 
   # Handle days
