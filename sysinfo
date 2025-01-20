@@ -97,26 +97,40 @@ get_wm() {
 
 get_uptime() {
   local uptime_str="$(uptime)"
-  local time_str="$(echo "$uptime_str" | sed 's/.*up *\([^,]*\),.*/\1/')"
+  local time_str
 
-  if echo "$time_str" | grep -q 'day'; then
-    local days="$(echo "$time_str" | grep -o '[0-9]* day' | awk '{print $1}')"
-    printf '%dd' "$days"
-  elif echo "$time_str" | grep -q ':'; then
-    local hours="$(echo "$time_str" | awk -F: '{print $1}' | tr -d ' ')"
-    local mins="$(echo "$time_str" | awk -F: '{print $2}' | tr -d ' ')"
-    printf '%dh %dm' "$hours" "$mins"
-  elif echo "$time_str" | grep -q 'sec'; then
-    local secs="$(echo "$time_str" | grep -o '[0-9]*' | head -1)"
-    printf '%ds' "$secs"
+  if echo "$uptime_str" | grep -q ' up '; then
+    time_str="$(echo "$uptime_str" | sed -E 's/.*up[[:space:]]*([^,]*).*/\1/')"
   else
-    local mins="$(echo "$time_str" | tr -d ' ' | grep -o '[0-9]*')"
-    printf '%dm' "$mins"
+    time_str="$(echo "$uptime_str" | sed -E 's/[^,]*,[[:space:]]*(.*)/\1/')"
   fi
+
+  local num pattern match
+  for pattern in \
+    's:([0-9]+)[[:space:]]*(day|days):&d:' \
+    'm:([0-9]+)[[:space:]]*(min|mins|minute|minutes):&m:' \
+    's:([0-9]+)[[:space:]]*(sec|secs|second|seconds):&s:' \
+    't:([0-9]+):([0-9]+):&h &m:'
+  do
+    IFS=: read -r type regex format <<EOF
+$pattern
+EOF
+    if match="$(echo "$time_str" | grep -oE "$regex")"; then
+      case $type in
+        s) num="$(echo "$match" | grep -oE '[0-9]+')" && printf "$format" "$num" ;;
+        m) num="$(echo "$match" | grep -oE '[0-9]+')" && printf "$format" "$num" ;;
+        t) local h m
+           h="$(echo "$time_str" | awk -F: '{print $1}' | grep -oE '[0-9]+')"
+           m="$(echo "$time_str" | awk -F: '{print $2}' | grep -oE '[0-9]+')"
+           printf "$format" "$h" "$m" ;;
+      esac
+      return
+    fi
+  done
 }
 
 get_gpu() {
-  local gpu=''
+  local gpu
 
   # Try sysctl first
   gpu="$(sysctl -n hw.vendor hw.product 2>/dev/null | paste -d ' ' - - | grep -i 'gpu')"
