@@ -105,27 +105,34 @@ get_uptime() {
     time_str="$(echo "$uptime_str" | sed -E 's/[^,]*,[[:space:]]*(.*)/\1/')"
   fi
 
-  local num pattern match
-  for pattern in \
-    's:[0-9]+[[:space:]]*(day|days):%dd:' \
-    'm:[0-9]+[[:space:]]*(min|mins|minute|minutes):%dm:' \
-    's:[0-9]+[[:space:]]*(sec|secs|second|seconds):%ds:' \
-    't:[0-9]+:[0-9]+:%dh %dm:'
-  do
-    IFS=: read -r type regex fmt <<EOF
-$pattern
-EOF
-    if match="$(echo "$time_str" | grep -oE "$regex")"; then
-      case $type in
-        s|m) num="$(echo "$match" | grep -oE '[0-9]+')" && printf "$fmt" "$num" ;;
-        t) local h m
-           h="$(echo "$time_str" | awk -F: '{print $1}' | grep -oE '[0-9]+')"
-           m="$(echo "$time_str" | awk -F: '{print $2}' | grep -oE '[0-9]+')"
-           printf "$fmt" "$h" "$m" ;;
-      esac
-      return
-    fi
-  done
+  # Handle days
+  if echo "$time_str" | grep -qE '[0-9]+[[:space:]]*(day|days)'; then
+    local num="$(echo "$time_str" | grep -oE '[0-9]+[[:space:]]*(day|days)' | grep -oE '[0-9]+')"
+    printf '%dd' "$num"
+    return
+  fi
+
+  # Handle HH:MM format
+  if echo "$time_str" | grep -q ':'; then
+    local h="$(echo "$time_str" | awk -F: '{print $1}' | grep -oE '[0-9]+')"
+    local m="$(echo "$time_str" | awk -F: '{print $2}' | grep -oE '[0-9]+')"
+    printf '%dh %dm' "$h" "$m"
+    return
+  fi
+
+  # Handle minutes
+  if echo "$time_str" | grep -qE '[0-9]+[[:space:]]*(min|mins|minute|minutes)'; then
+    local num="$(echo "$time_str" | grep -oE '[0-9]+[[:space:]]*(min|mins|minute|minutes)' | grep -oE '[0-9]+')"
+    printf '%dm' "$num"
+    return
+  fi
+
+  # Handle seconds 
+  if echo "$time_str" | grep -qE '[0-9]+[[:space:]]*(sec|secs|second|seconds)'; then
+    local num="$(echo "$time_str" | grep -oE '[0-9]+[[:space:]]*(sec|secs|second|seconds)' | grep -oE '[0-9]+')"
+    printf '%ds' "$num"
+    return
+  fi
 }
 
 get_gpu() {
