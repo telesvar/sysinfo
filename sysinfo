@@ -96,8 +96,8 @@ get_wm() {
 }
 
 get_uptime() {
-  local uptime_str time_str
-  uptime_str=$(uptime)
+  local uptime_str=$(uptime)
+  local time_str
 
   if echo $uptime_str | grep -q ' up '; then
     time_str=$(echo $uptime_str | sed -E 's/.*up[[:space:]]*([^,]*).*/\1/')
@@ -107,30 +107,30 @@ get_uptime() {
 
   # Handle days
   if echo $time_str | grep -qE '[0-9]+[[:space:]]*(day|days)'; then
-    num=$(echo $time_str | grep -oE '[0-9]+[[:space:]]*(day|days)' | grep -oE '[0-9]+')
-    printf '%dd' $((10#$num))
+    local d=$(echo $time_str | grep -oE '[0-9]+[[:space:]]*(day|days)' | grep -oE '[0-9]+')
+    printf '%dd' $((10#$d))
     return
   fi
 
   # Handle HH:MM format
   if echo $time_str | grep -q ':'; then
-    h=$(echo $time_str | awk -F: '{print $1}' | grep -oE '[0-9]+')
-    m=$(echo $time_str | awk -F: '{print $2}' | grep -oE '[0-9]+')
+    local h=$(echo $time_str | awk -F: '{print $1}' | grep -oE '[0-9]+')
+    local m=$(echo $time_str | awk -F: '{print $2}' | grep -oE '[0-9]+')
     printf '%dh %dm' $((10#$h)) $((10#$m))
     return
   fi
 
   # Handle minutes
   if echo $time_str | grep -qE '[0-9]+[[:space:]]*(min|mins|minute|minutes)'; then
-    num=$(echo $time_str | grep -oE '[0-9]+[[:space:]]*(min|mins|minute|minutes)' | grep -oE '[0-9]+')
-    printf '%dm' $((10#$num))
+    local m=$(echo $time_str | grep -oE '[0-9]+[[:space:]]*(min|mins|minute|minutes)' | grep -oE '[0-9]+')
+    printf '%dm' $((10#$m))
     return
   fi
 
   # Handle seconds
   if echo $time_str | grep -qE '[0-9]+[[:space:]]*(sec|secs|second|seconds)'; then
-    num=$(echo $time_str | grep -oE '[0-9]+[[:space:]]*(sec|secs|second|seconds)' | grep -oE '[0-9]+')
-    printf '%ds' $((10#$num))
+    local s=$(echo $time_str | grep -oE '[0-9]+[[:space:]]*(sec|secs|second|seconds)' | grep -oE '[0-9]+')
+    printf '%ds' $((10#$s))
     return
   fi
 }
