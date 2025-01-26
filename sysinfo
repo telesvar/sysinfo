@@ -183,27 +183,55 @@ get_gpu() {
 }
 
 format_size() {
-  local size="$1"
-  if [ "$size" -ge $((1024 * 1024 * 1024)) ]; then
-    printf '%.1fG' "$(echo "scale=1; $size/1024/1024/1024" | bc)"
-  elif [ "$size" -ge $((1024 * 1024)) ]; then
-    printf '%.1fM' "$(echo "scale=1; $size/1024/1024" | bc)"
-  elif [ "$size" -ge 1024 ]; then
-    printf '%.1fK' "$(echo "scale=1; $size/1024" | bc)"
-  else
-    printf '%dB' "$size"
-  fi
+  awk -v bytes="$1" 'BEGIN {
+    suffix = "BKMGT"
+    while (bytes >= 1024 && length(suffix) > 1) {
+      bytes /= 1024
+      suffix = substr(suffix, 2)
+    }
+    if (bytes == int(bytes)) {
+      printf "%d%c", bytes, substr(suffix,1,1)
+    } else {
+      printf "%.1f%c", bytes, substr(suffix,1,1)
+    }
+  }'
 }
 
 get_memory() {
-  local total="$(sysctl -n hw.physmem)"
-  local stats="$(top -b | grep '^Memory:')"
-  local used="$(echo "$stats" | awk '{gsub(/[A-Z]/, "", $3); print $3 * 1024 * 1024}')"
+  # Get total physical memory
+  total=$(sysctl -n hw.physmem 2>/dev/null) || {
+    echo "failed to get total memory" >&2
+    return 1
+  }
 
-  if [ "$total" -gt 0 ] && [ -n "$used" ]; then
-    local percent="$((used * 100 / total))"
-    printf '%s / %s (%d%%)' "$(format_size "$used")" "$(format_size "$total")" "$percent"
+  # Get memory stats from vmstat with exact matches
+  vmstat_output=$(vmstat -s)
+  pagesize=$(sysctl -n hw.pagesize)
+
+  active_pages=$(echo "$vmstat_output" | awk '/pages active$/ {print $1}')
+  wired_pages=$(echo "$vmstat_output" | awk '/pages wired$/ {print $1}')
+  free_pages=$(echo "$vmstat_output" | awk '/pages free$/ {print $1}')
+
+  # Validate numbers
+  [ -z "$active_pages" ] && active_pages=0
+  [ -z "$wired_pages" ] && wired_pages=0
+  [ -z "$free_pages" ] && free_pages=0
+
+  # Calculate memory usage
+  used=$(( (active_pages + wired_pages) * pagesize ))
+  available=$(( (active_pages + wired_pages + free_pages) * pagesize ))
+
+  # Calculate percentage (prevent division by zero)
+  if [ "$available" -gt 0 ]; then
+    percent=$(( (used * 100) / available ))
+  else
+    percent=0
   fi
+
+  printf '%s / %s (%d%%)' \
+    "$(format_size "$used")" \
+    "$(format_size "$total")" \
+    "$percent"
 }
 
 get_vm_type() {
