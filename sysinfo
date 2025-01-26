@@ -54,13 +54,13 @@ version() {
 # Terminal colors
 setup_colors() {
   if [ "$USE_COLOR" -eq 1 ] && [ -t 1 ] && [ -x "$(command -v tput)" ]; then
-  bold="$(tput bold 2>/dev/null)"
-  reset="$(tput sgr0 2>/dev/null)"
-  yellow="$(tput setaf 3 2>/dev/null)"
-  green="$(tput setaf 2 2>/dev/null)"
-  cyan="$(tput setaf 6 2>/dev/null)"
+    bold="$(tput bold 2>/dev/null)"
+    reset="$(tput sgr0 2>/dev/null)"
+    yellow="$(tput setaf 3 2>/dev/null)"
+    green="$(tput setaf 2 2>/dev/null)"
+    cyan="$(tput setaf 6 2>/dev/null)"
   else
-  bold='' reset='' yellow='' green='' cyan=''
+    bold='' reset='' yellow='' green='' cyan=''
   fi
 
   # Color scheme
@@ -77,8 +77,8 @@ setup_colors() {
 get_wm() {
   # Check Wayland first
   [ -n "$WAYLAND_DISPLAY" ] && {
-  [ -n "$XDG_CURRENT_DESKTOP" ] && echo "$XDG_CURRENT_DESKTOP" || echo 'Wayland'
-  return
+    [ -n "$XDG_CURRENT_DESKTOP" ] && echo "$XDG_CURRENT_DESKTOP" || echo 'Wayland'
+    return
   }
 
   # No X11/Wayland running
@@ -86,13 +86,13 @@ get_wm() {
 
   # Check common WM-specific environment variables
   [ -n "$WINDOW_MANAGER" ] && {
-  basename "$WINDOW_MANAGER"
-  return
+    basename "$WINDOW_MANAGER"
+    return
   }
 
   # Try process list, prioritizing OpenBSD-common WMs
   ps aux | grep -E -m 1 '\b(cwm|fvwm|twm|dwm|xenodm|i3|openbox|fluxbox|bspwm|awesome|xfwm4|icewm)\b' \
-  | grep -v grep | awk '{print $11}' | sed 's/.*\///'
+    | grep -v grep | awk '{print $11}' | sed 's/.*\///'
 }
 
 get_uptime() {
@@ -158,31 +158,40 @@ get_uptime() {
 }
 
 get_gpu() {
-  local gpu
+  # Try to extract quoted GPU name from any device line
+  gpu=$(dmesg | \
+    grep -i -E ' (gpu|vga|drm|virtio|graphics) ' | \
+    sed -E -n 's/.*"(.*)".*/\1/p' | \
+    grep -i -m1 -E 'gpu|vga|graphics|radeon|nvidia|intel|amd|virtio')
 
-  # Try sysctl first
-  gpu="$(sysctl -n hw.vendor hw.product 2>/dev/null | paste -d ' ' - - | grep -i 'gpu')"
   [ -n "$gpu" ] && { echo "$gpu"; return; }
 
-  # Check dmesg for GPU matches
-  gpu="$(dmesg | grep -i 'gpu' | awk -F'"' '{print $2}' | head -1)"
-  [ -n "$gpu" ] && { echo "$gpu"; return; }
+  # Fallback to PCI device description extraction
+  gpu=$(dmesg | \
+    grep -i -E ' (gpu|vga|drm|virtio|graphics) ' | \
+    sed -E '
+      s/.* at .*//;
+      s/rev.*//;
+      s/\([^)]*\)//g;
+      s/[[:space:]]+/ /g;
+      s/^[[:space:]]*//;
+      s/[[:space:]]*$//;
+    ' | \
+    grep -i -E -m1 'gpu|vga|graphics|radeon|nvidia|intel|amd|virtio')
 
-  # Fallback to driver detection
-  gpu="$(dmesg | grep -E 'drm[0-9]+ at|radeon[0-9]+ at|nvidia[0-9]+ at|intel[0-9]+ at|amdgpu[0-9]+ at' | awk -F'"' '{print $2}' | head -1)"
   [ -n "$gpu" ] && { echo "$gpu"; return; }
 }
 
 format_size() {
   local size="$1"
   if [ "$size" -ge $((1024 * 1024 * 1024)) ]; then
-  printf '%.1fG' "$(echo "scale=1; $size/1024/1024/1024" | bc)"
+    printf '%.1fG' "$(echo "scale=1; $size/1024/1024/1024" | bc)"
   elif [ "$size" -ge $((1024 * 1024)) ]; then
-  printf '%.1fM' "$(echo "scale=1; $size/1024/1024" | bc)"
+    printf '%.1fM' "$(echo "scale=1; $size/1024/1024" | bc)"
   elif [ "$size" -ge 1024 ]; then
-  printf '%.1fK' "$(echo "scale=1; $size/1024" | bc)"
+    printf '%.1fK' "$(echo "scale=1; $size/1024" | bc)"
   else
-  printf '%dB' "$size"
+    printf '%dB' "$size"
   fi
 }
 
@@ -192,8 +201,8 @@ get_memory() {
   local used="$(echo "$stats" | awk '{gsub(/[A-Z]/, "", $3); print $3 * 1024 * 1024}')"
 
   if [ "$total" -gt 0 ] && [ -n "$used" ]; then
-  local percent="$((used * 100 / total))"
-  printf '%s / %s (%d%%)' "$(format_size "$used")" "$(format_size "$total")" "$percent"
+    local percent="$((used * 100 / total))"
+    printf '%s / %s (%d%%)' "$(format_size "$used")" "$(format_size "$total")" "$percent"
   fi
 }
 
@@ -203,14 +212,14 @@ kvm:KVM vmware:VMware virtualbox:VirtualBox parallels:Parallels'
   local dmesg_out="$(dmesg)"
 
   echo "$mappings" | tr ' ' '\n' | while IFS=: read -r pattern name; do
-  if echo "$dmesg_out" | grep -qi "$pattern"; then
-    echo "$name"
-    return 0
-  fi
+    if echo "$dmesg_out" | grep -qi "$pattern"; then
+      echo "$name"
+      return 0
+    fi
   done
 
   if sysctl -n hw.model | grep -qi 'virtual'; then
-  echo 'Virtual'
+    echo 'Virtual'
   fi
 }
 
@@ -285,20 +294,20 @@ EOF
 
 main() {
   if [ -n "${NO_COLOR+x}" ]; then
-  USE_COLOR=0
+    USE_COLOR=0
   else
-  USE_COLOR=1
+    USE_COLOR=1
   fi
   NO_ASCII=0
 
   while getopts 'Chnv' opt; do
-  case "$opt" in
-    C) USE_COLOR=0 ;;
-    h) usage ;;
-    n) NO_ASCII=1 ;;
-    v) version ;;
-    *) usage 1 ;;
-  esac
+    case "$opt" in
+      C) USE_COLOR=0 ;;
+      h) usage ;;
+      n) NO_ASCII=1 ;;
+      v) version ;;
+      *) usage 1 ;;
+    esac
   done
   shift $((OPTIND - 1))
 
