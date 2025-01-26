@@ -103,49 +103,49 @@ get_uptime() {
     process_part() {
       part=$(echo "$1" | sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//')
 
-      # Days
+      # Days (e.g., "2 days")
       if echo "$part" | grep -qE '[0-9]+[[:space:]]+day(s?)'; then
         d=$(echo "$part" | sed -E 's/[^0-9]//g')
-        printf '%dd' "$d"
+        printf '%dd' "$((10#$d))"
         return
       fi
 
-      # HH:MM format
+      # HH:MM format (e.g., "12:34")
       if echo "$part" | grep -qE '[0-9]+:[0-9]+'; then
         h=$(echo "$part" | cut -d: -f1 | sed 's/[^0-9]//g')
         m=$(echo "$part" | cut -d: -f2 | sed 's/[^0-9]//g')
-        printf '%dh %dm' "$h" "$m"
+        printf '%dh %dm' "$((10#$h))" "$((10#$m))"
         return
       fi
 
-      # Hours
+      # Hours (e.g., "5 hours")
       if echo "$part" | grep -qE '[0-9]+[[:space:]]+hour(s?)'; then
         h=$(echo "$part" | sed -E 's/[^0-9]//g')
-        printf '%dh' "$h"
+        printf '%dh' "$((10#$h))"
         return
       fi
 
-      # Minutes
+      # Minutes (e.g., "08 mins")
       if echo "$part" | grep -qE '[0-9]+[[:space:]]+min(s?|ute(s?))'; then
         m=$(echo "$part" | sed -E 's/[^0-9]//g')
-        printf '%dm' "$m"
+        printf '%dm' "$((10#$m))"
         return
       fi
 
-      # Seconds
+      # Seconds (e.g., "09 secs")
       if echo "$part" | grep -qE '[0-9]+[[:space:]]+sec(s?|ond(s?))'; then
         s=$(echo "$part" | sed -E 's/[^0-9]//g')
-        printf '%ds' "$s"
+        printf '%ds' "$((10#$s))"
         return
       fi
 
-      # Fallback for numeric-only (minutes)
+      # Numeric fallback (e.g., "08" → 8 minutes)
       if echo "$part" | grep -qE '^[0-9]+$'; then
-        printf '%dm' "$part"
+        printf '%dm' "$((10#$part))"
       fi
     }
 
-    # Process all parts
+    # Process all valid parts
     for part in "$first_part" "$second_part" "$third_part"; do
       [ -z "$part" ] && continue
       processed=$(process_part "$part")
