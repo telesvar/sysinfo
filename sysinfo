@@ -206,7 +206,7 @@ get_memory() {
   local available=$(( (active_pages + wired_pages + free_pages) * pagesize ))
 
   # Calculate percentage (prevent division by zero)
-  local percent = 0
+  local percent=0
   if [ "$available" -gt 0 ]; then
     percent=$(( (used * 100) / available ))
   fi
