@@ -247,22 +247,22 @@ collect_system_info() {
 
 print_system_info() {
   if [ "$NO_ASCII" -eq 0 ]; then
-  cat << EOF
-            ${uc}$User${reset}${bold}@${hc}$Hostname${reset}
-    _____           ${lc}OS${ic}: $OS
+    cat << EOF
+                      ${uc}$User${reset}${bold}@${hc}$Hostname${reset}
+      _____           ${lc}OS${ic}: $OS
    \\-      -/    o    ${lc}Kernel${ic}: $Kernel
 \\_/          \\  o     ${lc}Machine${ic}: $Machine${VM_Type:+ ($VM_Type)}
 |         O O |  o    ${lc}CPU${ic}: $CPU ($CPU_Cores*)
 |_  <    )  3 ) o     ${lc}GPU${ic}: ${GPU:--}
 / \\          /        ${lc}Memory${ic}: $RAM
    /-_____ -\\         ${lc}Disk${ic} ${bold}(${lc}/${ic}${bold})${ic}: $Disk
-            ${lc}Shell${ic}: $Shell
-            ${lc}Uptime${ic}: $Uptime
-            ${lc}Packages${ic}: $Packages${WM:+
-            ${lc}WM${ic}: $WM}
+                      ${lc}Shell${ic}: $Shell
+                      ${lc}Uptime${ic}: $Uptime
+                      ${lc}Packages${ic}: $Packages${WM:+
+                      ${lc}WM${ic}: $WM}
 EOF
   else
-  cat << EOF
+    cat << EOF
 ${uc}$User${reset}${bold}@${hc}$Hostname${reset}
 ${lc}OS${ic}: $OS
 ${lc}Kernel${ic}: $Kernel
