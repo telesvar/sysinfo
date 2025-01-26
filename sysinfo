@@ -99,42 +99,41 @@ get_uptime() {
   uptime | sed -E 's/.* up +//; s/, *[0-9]+ users?.*//; s/, *load averages?.*//; s/^ *//' | {
     IFS=',' read -r first_part second_part third_part
 
-    output=''
     process_part() {
-      part=$(echo "$1" | sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//')
+      local part=$(echo "$1" | sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//')
 
       # Days (e.g., "2 days")
       if echo "$part" | grep -qE '[0-9]+[[:space:]]+day(s?)'; then
-        d=$(echo "$part" | sed -E 's/[^0-9]//g')
+        local d=$(echo "$part" | sed -E 's/[^0-9]//g')
         printf '%dd' "$((10#$d))"
         return
       fi
 
       # HH:MM format (e.g., "12:34")
       if echo "$part" | grep -qE '[0-9]+:[0-9]+'; then
-        h=$(echo "$part" | cut -d: -f1 | sed 's/[^0-9]//g')
-        m=$(echo "$part" | cut -d: -f2 | sed 's/[^0-9]//g')
+        local h=$(echo "$part" | cut -d: -f1 | sed 's/[^0-9]//g')
+        local m=$(echo "$part" | cut -d: -f2 | sed 's/[^0-9]//g')
         printf '%dh %dm' "$((10#$h))" "$((10#$m))"
         return
       fi
 
       # Hours (e.g., "5 hours")
       if echo "$part" | grep -qE '[0-9]+[[:space:]]+hour(s?)'; then
-        h=$(echo "$part" | sed -E 's/[^0-9]//g')
+        local h=$(echo "$part" | sed -E 's/[^0-9]//g')
         printf '%dh' "$((10#$h))"
         return
       fi
 
       # Minutes (e.g., "08 mins")
       if echo "$part" | grep -qE '[0-9]+[[:space:]]+min(s?|ute(s?))'; then
-        m=$(echo "$part" | sed -E 's/[^0-9]//g')
+        local m=$(echo "$part" | sed -E 's/[^0-9]//g')
         printf '%dm' "$((10#$m))"
         return
       fi
 
       # Seconds (e.g., "09 secs")
       if echo "$part" | grep -qE '[0-9]+[[:space:]]+sec(s?|ond(s?))'; then
-        s=$(echo "$part" | sed -E 's/[^0-9]//g')
+        local s=$(echo "$part" | sed -E 's/[^0-9]//g')
         printf '%ds' "$((10#$s))"
         return
       fi
@@ -146,9 +145,10 @@ get_uptime() {
     }
 
     # Process all valid parts
+    local output=''
     for part in "$first_part" "$second_part" "$third_part"; do
       [ -z "$part" ] && continue
-      processed=$(process_part "$part")
+      local processed=$(process_part "$part")
       output="$output${output:+ }$processed"
     done
 
@@ -159,11 +159,10 @@ get_uptime() {
 
 get_gpu() {
   # Try to extract quoted GPU name from any device line
-  gpu=$(dmesg | \
+  local gpu=$(dmesg | \
     grep -i -E '(gpu|vga|drm|pci|virtio|graphics)' | \
     sed -E -n 's/.*"(.*)".*/\1/p' | \
     grep -i -m1 -E 'gpu|vga|graphics|radeon|nvidia|intel|amd')
-
   [ -n "$gpu" ] && { echo "$gpu"; return; }
 }
 
@@ -184,18 +183,18 @@ format_size() {
 
 get_memory() {
   # Get total physical memory
-  total=$(sysctl -n hw.physmem 2>/dev/null) || {
+  local total=$(sysctl -n hw.physmem 2>/dev/null) || {
     echo "failed to get total memory" >&2
     return 1
   }
 
   # Get memory stats from vmstat with exact matches
-  vmstat_output=$(vmstat -s)
-  pagesize=$(sysctl -n hw.pagesize)
+  local vmstat_output=$(vmstat -s)
+  local pagesize=$(sysctl -n hw.pagesize)
 
-  active_pages=$(echo "$vmstat_output" | awk '/pages active$/ {print $1}')
-  wired_pages=$(echo "$vmstat_output" | awk '/pages wired$/ {print $1}')
-  free_pages=$(echo "$vmstat_output" | awk '/pages free$/ {print $1}')
+  local active_pages=$(echo "$vmstat_output" | awk '/pages active$/ {print $1}')
+  local wired_pages=$(echo "$vmstat_output" | awk '/pages wired$/ {print $1}')
+  local free_pages=$(echo "$vmstat_output" | awk '/pages free$/ {print $1}')
 
   # Validate numbers
   [ -z "$active_pages" ] && active_pages=0
@@ -203,14 +202,13 @@ get_memory() {
   [ -z "$free_pages" ] && free_pages=0
 
   # Calculate memory usage
-  used=$(( (active_pages + wired_pages) * pagesize ))
-  available=$(( (active_pages + wired_pages + free_pages) * pagesize ))
+  local used=$(( (active_pages + wired_pages) * pagesize ))
+  local available=$(( (active_pages + wired_pages + free_pages) * pagesize ))
 
   # Calculate percentage (prevent division by zero)
+  local percent = 0
   if [ "$available" -gt 0 ]; then
     percent=$(( (used * 100) / available ))
-  else
-    percent=0
   fi
 
   printf '%s / %s (%d%%)' \
