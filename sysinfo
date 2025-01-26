@@ -160,24 +160,9 @@ get_uptime() {
 get_gpu() {
   # Try to extract quoted GPU name from any device line
   gpu=$(dmesg | \
-    grep -i -E ' (gpu|vga|drm|virtio|graphics) ' | \
+    grep -i -E '(gpu|vga|drm|pci|virtio|graphics)' | \
     sed -E -n 's/.*"(.*)".*/\1/p' | \
-    grep -i -m1 -E 'gpu|vga|graphics|radeon|nvidia|intel|amd|virtio')
-
-  [ -n "$gpu" ] && { echo "$gpu"; return; }
-
-  # Fallback to PCI device description extraction
-  gpu=$(dmesg | \
-    grep -i -E ' (gpu|vga|drm|virtio|graphics) ' | \
-    sed -E '
-      s/.* at .*//;
-      s/rev.*//;
-      s/\([^)]*\)//g;
-      s/[[:space:]]+/ /g;
-      s/^[[:space:]]*//;
-      s/[[:space:]]*$//;
-    ' | \
-    grep -i -E -m1 'gpu|vga|graphics|radeon|nvidia|intel|amd|virtio')
+    grep -i -m1 -E 'gpu|vga|graphics|radeon|nvidia|intel|amd')
 
   [ -n "$gpu" ] && { echo "$gpu"; return; }
 }
