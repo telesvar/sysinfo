@@ -60,7 +60,7 @@ version() {
 
 setup_colors() {
   if [ ${USE_COLOR:-1} -eq 1 ] && [ -t 1 ] && command -v tput >/dev/null 2>&1; then
-    local bold reset_colors yellow green cyan
+    local reset_colors
     ORIG_TERM_STATE=$(stty -g)
     bold=$(tput bold 2>/dev/null) || bold=
     reset_colors=$(tput sgr0 2>/dev/null) || reset_colors=
