@@ -30,8 +30,15 @@ SOFTWARE.
 
 set -eu
 
-VERSION=0.1.0
-PROG_NAME=${0##*/}
+readonly VERSION=0.1.0
+readonly PROG_NAME=${0##*/}
+
+trap reset_terminal EXIT INT TERM
+
+reset_terminal() {
+  [ -n "${ORIG_TERM_STATE:-}" ] && stty "$ORIG_TERM_STATE"
+  [ -n "${reset:-}" ] && printf %s "$reset"
+}
 
 usage() {
   cat >&2 << EOF
@@ -52,6 +59,7 @@ version() {
 setup_colors() {
   if [ ${USE_COLOR:-1} -eq 1 ] && [ -t 1 ] && command -v tput >/dev/null 2>&1; then
     local bold reset yellow green cyan
+    ORIG_TERM_STATE=$(stty -g)
     bold=$(tput bold 2>/dev/null) || bold=
     reset=$(tput sgr0 2>/dev/null) || reset=
     yellow=$(tput setaf 3 2>/dev/null) || yellow=
@@ -61,10 +69,10 @@ setup_colors() {
     local bold= reset= yellow= green= cyan=
   fi
 
-  lc=$reset$bold$yellow   # labels
-  uc=$reset$bold$green    # username
-  hc=$reset$bold$cyan     # hostname
-  ic=$reset               # information
+  lc=$reset$bold$yellow  # labels
+  uc=$reset$bold$green   # username
+  hc=$reset$bold$cyan    # hostname
+  ic=$reset              # information
 }
 
 get_uptime() {
@@ -77,52 +85,61 @@ get_uptime() {
       printf "%s", parts[i]
     }
   }' | {
-    local first_part second_part third_part
-    IFS=, read -r first_part second_part third_part
+    local first_part second_part third_part output=
+    IFS=, read -r first_part second_part third_part || true
 
     process_part() {
-      local part=$(echo "$1" | sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//')
+      local part=$(echo $1 | sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//')
 
-      if echo "$part" | grep -qE '[0-9]+[[:space:]]+day(s?)'; then
-        local d=$(echo "$part" | sed -E 's/[^0-9]//g')
-        printf %dd "$((10#$d))"
-        return
+      # Days
+      if echo $part | grep -qE '[0-9]+[[:space:]]+day(s?)'; then
+        local d=$(echo $part | sed -E 's/[^0-9]//g')
+        printf %dd $((10#$d))
+        return 0
       fi
 
-      if echo "$part" | grep -qE '^[0-9]+:[0-9]+$'; then
-        local h=$(echo "$part" | cut -d: -f1 | sed 's/[^0-9]//g')
-        local m=$(echo "$part" | cut -d: -f2 | sed 's/[^0-9]//g')
-        printf %dh\ %dm "$((10#$h))" "$((10#$m))"
-        return
+      # HH:MM format
+      if echo $part | grep -qE '^[0-9]+:[0-9]+$'; then
+        local h=$(echo $part | cut -d: -f1 | sed 's/[^0-9]//g')
+        local m=$(echo $part | cut -d: -f2 | sed 's/[^0-9]//g')
+        printf %dh\ %dm $((10#$h)) $((10#$m))
+        return 0
       fi
 
-      if echo "$part" | grep -qE '[0-9]+[[:space:]]+hour(s?)'; then
-        local h=$(echo "$part" | sed -E 's/[^0-9]//g')
-        printf %dh "$((10#$h))"
-        return
+      # Hours
+      if echo $part | grep -qE '[0-9]+[[:space:]]+hour(s?)'; then
+        local h=$(echo $part | sed -E 's/[^0-9]//g')
+        printf %dh $((10#$h))
+        return 0
       fi
 
-      if echo "$part" | grep -qE '[0-9]+[[:space:]]+min(s?|ute(s?))'; then
-        local m=$(echo "$part" | sed -E 's/[^0-9]//g')
-        printf %dm "$((10#$m))"
-        return
+      # Minutes
+      if echo $part | grep -qE '[0-9]+[[:space:]]+min(s?|ute(s?))'; then
+        local m=$(echo $part | sed -E 's/[^0-9]//g')
+        printf %dm $((10#$m))
+        return 0
       fi
 
-      if echo "$part" | grep -qE '[0-9]+[[:space:]]+sec(s?|ond(s?))'; then
-        local s=$(echo "$part" | sed -E 's/[^0-9]//g')
-        printf %ds "$((10#$s))"
-        return
+      # Seconds
+      if echo $part | grep -qE '[0-9]+[[:space:]]+sec(s?|ond(s?))'; then
+        local s=$(echo $part | sed -E 's/[^0-9]//g')
+        printf %ds $((10#$s))
+        return 0
       fi
 
-      if echo "$part" | grep -qE '^[0-9]+$'; then
-        printf %dm "$((10#$part))"
+      # Numeric fallback (minutes)
+      if echo $part | grep -qE '^[0-9]+$'; then
+        printf %dm $((10#$part))
+        return 0
       fi
+
+      return 1
     }
 
-    local output= processed
-    for part in "$first_part" "$second_part" "$third_part"; do
+    for part in "${first_part:-}" "${second_part:-}" "${third_part:-}"; do
       [ -z "${part:-}" ] && continue
-      processed=$(process_part "$part")
+      local processed
+      processed=$(process_part "$part") || continue
       output=${output:+$output }$processed
     done
 
@@ -140,7 +157,7 @@ get_gpu() {
 }
 
 format_size() {
-  awk -v bytes="$1" 'BEGIN {
+  awk -v bytes=$1 'BEGIN {
     suffix = "BKMGT"
     while (bytes >= 1024 && length(suffix) > 1) {
       bytes /= 1024
@@ -152,26 +169,23 @@ format_size() {
 }
 
 get_memory() {
-  local total pagesize vmstat_output
-  total=$(sysctl -n hw.physmem 2>/dev/null) || { echo -; return 0; }
-  pagesize=$(sysctl -n hw.pagesize 2>/dev/null) || { echo -; return 0; }
-  vmstat_output=$(vmstat -s 2>/dev/null) || { echo -; return 0; }
+  local total=$(sysctl -n hw.physmem 2>/dev/null) || { echo -; return 0; }
+  local pagesize=$(sysctl -n hw.pagesize 2>/dev/null) || { echo -; return 0; }
+  local vmstat_output=$(vmstat -s 2>/dev/null) || { echo -; return 0; }
 
-  local active_pages wired_pages free_pages
-  active_pages=$(echo "$vmstat_output" | awk '/pages active$/ {print $1}') || active_pages=0
-  wired_pages=$(echo "$vmstat_output" | awk '/pages wired$/ {print $1}') || wired_pages=0
-  free_pages=$(echo "$vmstat_output" | awk '/pages free$/ {print $1}') || free_pages=0
+  local active_pages=$(echo "$vmstat_output" | awk '/pages active$/ {print $1}') || active_pages=0
+  local wired_pages=$(echo "$vmstat_output" | awk '/pages wired$/ {print $1}') || wired_pages=0
+  local free_pages=$(echo "$vmstat_output" | awk '/pages free$/ {print $1}') || free_pages=0
 
-  local used available percent
-  used=$((( active_pages + wired_pages) * pagesize ))
-  available=$(((active_pages + wired_pages + free_pages) * pagesize))
-  percent=0
+  local used=$((( active_pages + wired_pages) * pagesize ))
+  local available=$(((active_pages + wired_pages + free_pages) * pagesize))
+  local percent=0
 
-  [ "$available" -gt 0 ] && percent=$(((used * 100) / available))
+  [ $available -gt 0 ] && percent=$(((used * 100) / available))
 
   printf '%s / %s (%d%%)' \
-    "$(format_size "$used")" \
-    "$(format_size "$total")" \
+    "$(format_size $used)" \
+    "$(format_size $total)" \
     "$percent"
 }
 
@@ -179,12 +193,11 @@ get_vm_type() {
   local mappings='hypervisor:HyperV vmm:VMM bhyve:bhyve xen:Xen qemu:QEMU \
 kvm:KVM vmware:VMware virtualbox:VirtualBox parallels:Parallels'
 
-  local dmesg_out
-  dmesg_out=$(dmesg 2>/dev/null) || return 0
+  local dmesg_out=$(dmesg 2>/dev/null) || return 0
 
   echo "$mappings" | tr ' ' '\n' | while IFS=: read -r pattern name; do
     if echo "$dmesg_out" | grep -qi "$pattern"; then
-      echo "$name"
+      echo $name
       return 0
     fi
   done
@@ -195,40 +208,27 @@ kvm:KVM vmware:VMware virtualbox:VirtualBox parallels:Parallels'
 }
 
 collect_system_info() {
-  local user hostname os kernel machine vm_type cpu cpu_cores gpu ram shell uptime packages disk
-
-  user=${USER:-$(id -un)}
-  hostname=$(hostname 2>/dev/null || echo -)
-  os=$(uname -sr 2>/dev/null || echo -)
-  kernel=$(uname -v 2>/dev/null || echo -)
-  machine=$(sysctl -n hw.machine 2>/dev/null || echo -)
-  vm_type=$(get_vm_type)
-
-  cpu=$(sysctl -n hw.model 2>/dev/null || echo -)
-  cpu_cores=$(sysctl -n hw.ncpuonline 2>/dev/null || echo -)
-  gpu=$(get_gpu)
-  ram=$(get_memory)
-
-  shell=${SHELL:--}
+  # Declaration of locals on same line as first use
+  local user=${USER:-$(id -un)}
+  local hostname=$(hostname 2>/dev/null || echo -)
+  local os=$(uname -sr 2>/dev/null || echo -)
+  local kernel=$(uname -v 2>/dev/null || echo -)
+  local machine=$(sysctl -n hw.machine 2>/dev/null || echo -)
+  local vm_type=$(get_vm_type)
+  local cpu=$(sysctl -n hw.model 2>/dev/null || echo -)
+  local cpu_cores=$(sysctl -n hw.ncpuonline 2>/dev/null || echo -)
+  local gpu=$(get_gpu)
+  local ram=$(get_memory)
+  local shell=${SHELL:--}
   [ -n "$shell" ] && shell=${shell##*/}
-  uptime=$(get_uptime)
-  packages=$(pkg_info -q 2>/dev/null | wc -l | tr -d ' ' || echo -)
-  disk=$(df -h / 2>/dev/null | awk 'NR==2 {printf "%s / %s (%s)", $3, $2, $5}' || echo -)
+  local uptime=$(get_uptime)
+  local packages=$(pkg_info -q 2>/dev/null | wc -l | tr -d ' ' || echo -)
+  local disk=$(df -h / 2>/dev/null | awk 'NR==2 {printf "%s / %s (%s)", $3, $2, $5}' || echo -)
 
-  User=$user
-  Hostname=$hostname
-  OS=$os
-  Kernel=$kernel
-  Machine=$machine
-  VM_Type=$vm_type
-  CPU=$cpu
-  CPU_Cores=$cpu_cores
-  GPU=$gpu
-  RAM=$ram
-  Shell=$shell
-  Uptime=$uptime
-  Packages=$packages
-  Disk=$disk
+  # Export to global variables
+  User=$user Hostname=$hostname OS=$os Kernel=$kernel Machine=$machine
+  VM_Type=$vm_type CPU=$cpu CPU_Cores=$cpu_cores GPU=$gpu RAM=$ram
+  Shell=$shell Uptime=$uptime Packages=$packages Disk=$disk
 }
 
 print_system_info() {

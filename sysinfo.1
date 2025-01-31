@@ -13,6 +13,7 @@ The
 utility displays system information in a formatted output.
 Information is collected using standard system commands.
 When running in a compatible terminal, the output is color-coded.
+The utility ensures proper terminal state restoration on exit.
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Fl C
@@ -22,7 +23,7 @@ Display help message and exit
 .It Fl n
 Disable ASCII art
 .It Fl v
-Display version information and exit
+Display version information in the format "sysinfo-VERSION" and exit
 .El
 .Sh OUTPUT
 .Bl -tag -width Ds
@@ -63,28 +64,36 @@ Root partition usage from
 .It Sy Shell
 Current user's shell from
 .Ev SHELL
-environment variable
+environment variable, shows "-" when not available
 .It Sy Uptime
 System uptime from
 .Xr uptime 1 ,
-formatted as days (d), hours (h), minutes (m), or seconds (s)
+formatted as days (d), hours (h), minutes (m), or seconds (s). Shows "-" when
+not available
 .It Sy Packages
 Number of installed packages from
-.Xr pkg_info 1
+.Xr pkg_info 1 ,
+shows "-" when not available
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
 .It Ev NO_COLOR
-Disable color output if set
+Disable color output if set (any value)
 .It Ev SHELL
-User's shell
+User's shell path, defaults to "-" if not set
 .It Ev USER
-Username for display
+Username for display, falls back to
+.Xr id 1
+output if not set
+.It Ev TERM
+Used by
+.Xr tput 1
+for terminal capabilities
 .El
 .Sh EXIT STATUS
 .Bl -tag -width Ds
 .It 0
-Successful completion
+Successful completion or help/version display
 .It 1
 An error occurred
 .El
@@ -116,12 +125,19 @@ QEMU/KVM, VMware, VirtualBox, and Parallels through
 output and
 .Xr sysctl 8
 hw.model information.
+.Ss Terminal Handling
+The utility saves and restores terminal state using
+.Xr stty 1 ,
+ensuring proper cleanup on normal exit or interruption.
+Color output requires an ANSI-capable terminal and
+.Xr tput 1 .
 .Sh SEE ALSO
 .Xr df 1 ,
 .Xr dmesg 8 ,
 .Xr hostname 1 ,
 .Xr id 1 ,
 .Xr pkg_info 1 ,
+.Xr stty 1 ,
 .Xr sysctl 8 ,
 .Xr tput 1 ,
 .Xr uname 1 ,
@@ -140,6 +156,10 @@ Copyright (c) 2023 Szenesis
 Copyright (c) 2024 Dair Aidarkhanov
 .Sh NOTES
 .Bl -dash -compact
+.It
+Terminal state is properly restored on exit
+.It
+All unavailable information is displayed as "-"
 .It
 Colors require ANSI-capable terminal and
 .Xr tput 1
