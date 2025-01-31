@@ -74,10 +74,10 @@ setup_colors() {
       hc=$reset_colors$bold$cyan    # hostname
       ic=$reset_colors              # information
     else
-      bold= lc= uc= hc= ic=  # no colors if reset isn't available
+      bold= lc= uc= hc= ic=
     fi
   else
-    bold= lc= uc= hc= ic=  # no colors if conditions aren't met
+    bold= lc= uc= hc= ic=
   fi
 }
 
@@ -214,7 +214,6 @@ kvm:KVM vmware:VMware virtualbox:VirtualBox parallels:Parallels'
 }
 
 collect_system_info() {
-  # Declaration of locals on same line as first use
   local user=${USER:-$(id -un)}
   local hostname=$(hostname 2>/dev/null || echo -)
   local os=$(uname -sr 2>/dev/null || echo -)
@@ -231,7 +230,6 @@ collect_system_info() {
   local packages=$(pkg_info -q 2>/dev/null | wc -l | tr -d ' ' || echo -)
   local disk=$(df -h / 2>/dev/null | awk 'NR==2 {printf "%s / %s (%s)", $3, $2, $5}' || echo -)
 
-  # Export to global variables
   User=$user Hostname=$hostname OS=$os Kernel=$kernel Machine=$machine
   VM_Type=$vm_type CPU=$cpu CPU_Cores=$cpu_cores GPU=$gpu RAM=$ram
   Shell=$shell Uptime=$uptime Packages=$packages Disk=$disk
