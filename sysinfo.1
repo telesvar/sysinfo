@@ -1,4 +1,4 @@
-.Dd January 19, 2025
+.Dd January 31, 2025
 .Dt SYSINFO 1
 .Os
 .Sh NAME
@@ -10,64 +10,83 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility displays system information along with an optional ASCII art
-representation of Puffy.
-Information is collected using standard commands.
+utility displays system information in a formatted output.
+Information is collected using standard system commands.
 When running in a compatible terminal, the output is color-coded.
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Fl C
 Disable color output
 .It Fl h
-Display help message
+Display help message and exit
 .It Fl n
 Disable ASCII art
 .It Fl v
-Display version information
+Display version information and exit
 .El
 .Sh OUTPUT
 .Bl -tag -width Ds
 .It Sy User@Hostname
-Current user and system hostname
+Current user and system hostname from
+.Ev USER
+environment variable or
+.Xr id 1 ,
+and
+.Xr hostname 1
 .It Sy OS
-OpenBSD version
+Operating system version from
+.Xr uname 1
 .It Sy Kernel
-Kernel version
+Kernel version from
+.Xr uname 1
 .It Sy Machine
-Architecture and virtualization type (if detected)
+Architecture from
+.Xr sysctl 8
+hw.machine and virtualization type (if detected)
 .It Sy CPU
-Processor model and online CPU cores
+Processor model from
+.Xr sysctl 8
+hw.model and number of online CPU cores from hw.ncpuonline
 .It Sy GPU
-Graphics processor information (when available)
+Graphics processor information from
+.Xr dmesg 8
+output when available, shows "-" when not detected
 .It Sy Memory
-Memory usage with total and percentage
+Memory usage showing used/total with percentage. Uses
+.Xr sysctl 8
+hw.physmem and
+.Xr vmstat 1
+page statistics for calculations
 .It Sy Disk
-Root partition usage
+Root partition usage from
+.Xr df 1
 .It Sy Shell
-Current user's shell
+Current user's shell from
+.Ev SHELL
+environment variable
 .It Sy Uptime
-System uptime in days, hours, minutes, or seconds
+System uptime from
+.Xr uptime 1 ,
+formatted as days (d), hours (h), minutes (m), or seconds (s)
 .It Sy Packages
-Number of installed packages
-.It Sy WM
-Window manager or desktop environment (when available)
+Number of installed packages from
+.Xr pkg_info 1
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
-.It Ev DISPLAY
-X11 session detection
 .It Ev NO_COLOR
 Disable color output if set
 .It Ev SHELL
 User's shell
 .It Ev USER
 Username for display
-.It Ev WAYLAND_DISPLAY
-Wayland session detection
-.It Ev WINDOW_MANAGER
-Window manager path
-.It Ev XDG_CURRENT_DESKTOP
-Desktop environment identification
+.El
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+Successful completion
+.It 1
+An error occurred
 .El
 .Sh EXAMPLES
 Display system information:
@@ -83,44 +102,49 @@ Show information without ASCII art:
 .Dl $ sysinfo -n
 .Sh IMPLEMENTATION NOTES
 .Ss Memory Display
-Memory values are scaled (B, K, M, G) with one decimal place precision.
+Memory values are scaled (B, K, M, G, T) with one decimal place precision.
 Physical memory comes from
-.Xr sysctl 8 ,
-used memory from
-.Xr top 1 .
+.Xr sysctl 8
+hw.physmem, while used memory is calculated using
+.Xr vmstat 1
+page statistics (active, wired, and free pages) multiplied by the system page
+size.
 .Ss Virtualization Detection
-Detects common virtualization platforms including VMM, bhyve, Hyper-V,
-Xen, QEMU/KVM, VMware, VirtualBox, and Parallels.
-.Ss Window Manager Detection
-Detects window managers through:
-.Bl -enum -compact
-.It
-Wayland session check
-.It
-X11 environment variables
-.It
-Process list scanning
-.El
+Detects virtualization platforms including VMM, bhyve, Hyper-V, Xen,
+QEMU/KVM, VMware, VirtualBox, and Parallels through
+.Xr dmesg 8
+output and
+.Xr sysctl 8
+hw.model information.
 .Sh SEE ALSO
-.Xr bc 1 ,
 .Xr df 1 ,
 .Xr dmesg 8 ,
 .Xr hostname 1 ,
+.Xr id 1 ,
 .Xr pkg_info 1 ,
-.Xr ps 1 ,
 .Xr sysctl 8 ,
-.Xr top 1 ,
 .Xr tput 1 ,
-.Xr uname 1
+.Xr uname 1 ,
+.Xr uptime 1 ,
+.Xr vmstat 1
 .Sh AUTHORS
 .An Szenesis Aq Mt https://github.com/Szenesis/sysinfo
 .Pp
 Modified by
-.An Dair Aidarkhanov
+.An Dair Aidarkhanov Aq Mt https://github.com/telesvar/sysinfo
+.Sh LICENSE
+MIT License
+.br
+Copyright (c) 2023 Szenesis
+.br
+Copyright (c) 2024 Dair Aidarkhanov
 .Sh NOTES
 .Bl -dash -compact
 .It
-Colors require ANSI-capable terminal and tput
+Colors require ANSI-capable terminal and
+.Xr tput 1
 .It
-Color output is disabled when NO_COLOR is set
+Color output is disabled when
+.Ev NO_COLOR
+is set
 .El
