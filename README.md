@@ -9,7 +9,6 @@ Display OpenBSD system information.
 - System information display with Puffy ASCII art
 - Hardware detection including virtualization environment
 - Memory and disk usage with scaled units
-- Window manager detection for X11 and Wayland
 - Color output with ANSI terminal support
 
 ## Installation
@@ -35,10 +34,10 @@ sysinfo
 Options:
 ```sh
 usage: sysinfo [-Chnv]
-    -C        disable color output
-    -h        display help
-    -n        disable ASCII art
-    -v        display version
+  -C        disable color output
+  -h        display help
+  -n        disable ASCII art
+  -v        display version
 ```
 
 Color output can also be disabled by setting the `NO_COLOR` environment variable.
