@@ -170,7 +170,7 @@ format_size() {
       suffix = substr(suffix, 2)
     }
     printf (bytes == int(bytes)) ? "%d%c" : "%.1f%c",
-           bytes, substr(suffix,1,1)
+            bytes, substr(suffix,1,1)
   }'
 }
 
