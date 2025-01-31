@@ -244,7 +244,7 @@ collect_system_info() {
 print_system_info() {
   if [ ${NO_ASCII:-0} -eq 0 ]; then
     cat << EOF
-                      ${uc}${User}${reset}${bold}@${hc}${Hostname}${reset}
+                      ${uc}${User}${ic}${bold}@${hc}${Hostname}${ic}
       _____           ${lc}OS${ic}: ${OS}
    \\-      -/    o    ${lc}Kernel${ic}: ${Kernel}
 \\_/          \\  o     ${lc}Machine${ic}: ${Machine}${VM_Type:+ ($VM_Type)}
@@ -258,7 +258,7 @@ print_system_info() {
 EOF
   else
     cat << EOF
-${uc}${User}${reset}${bold}@${hc}${Hostname}${reset}
+${uc}${User}${ic}${bold}@${hc}${Hostname}${ic}
 ${lc}OS${ic}: ${OS}
 ${lc}Kernel${ic}: ${Kernel}
 ${lc}Machine${ic}: ${Machine}${VM_Type:+ ($VM_Type)}
