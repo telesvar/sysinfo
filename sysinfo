@@ -62,8 +62,8 @@ setup_colors() {
   if [ ${USE_COLOR:-1} -eq 1 ] && [ -t 1 ] && command -v tput >/dev/null 2>&1; then
     local reset_colors
     ORIG_TERM_STATE=$(stty -g)
-    bold=$(tput bold 2>/dev/null) || bold=
     reset_colors=$(tput sgr0 2>/dev/null) || reset_colors=
+    bold=$(tput bold 2>/dev/null) || bold=
     yellow=$(tput setaf 3 2>/dev/null) || yellow=
     green=$(tput setaf 2 2>/dev/null) || green=
     cyan=$(tput setaf 6 2>/dev/null) || cyan=
@@ -75,10 +75,10 @@ setup_colors() {
       hc=$reset_colors$bold$cyan    # hostname
       ic=$reset_colors              # information
     else
-      lc= uc= hc= ic=  # no colors if reset isn't available
+      bold= lc= uc= hc= ic=  # no colors if reset isn't available
     fi
   else
-    lc= uc= hc= ic=  # no colors if conditions aren't met
+    bold= lc= uc= hc= ic=  # no colors if conditions aren't met
   fi
 
   # Export the reset sequence for the trap
@@ -276,7 +276,7 @@ EOF
 main() {
   local opt use_color=1 no_ascii=0
 
-  [ -n "${NO_COLOR:-}" ] && use_color=0
+  [ -n "${NO_COLOR+x}" ] && use_color=0
 
   while getopts Chnv opt; do
     case $opt in
