@@ -36,8 +36,10 @@ readonly PROG_NAME=${0##*/}
 trap reset_terminal EXIT INT TERM
 
 reset_terminal() {
+  # Only restore stty state if we saved it
   [ -n "${ORIG_TERM_STATE:-}" ] && stty "$ORIG_TERM_STATE"
-  [ -n "${reset:-}" ] && printf %s "$reset"
+  # Only reset colors if we successfully set them
+  [ -n "${reset_colors:-}" ] && printf %s "$reset_colors"
 }
 
 usage() {
@@ -58,21 +60,29 @@ version() {
 
 setup_colors() {
   if [ ${USE_COLOR:-1} -eq 1 ] && [ -t 1 ] && command -v tput >/dev/null 2>&1; then
-    local bold reset yellow green cyan
+    local bold reset_colors yellow green cyan
     ORIG_TERM_STATE=$(stty -g)
     bold=$(tput bold 2>/dev/null) || bold=
-    reset=$(tput sgr0 2>/dev/null) || reset=
+    reset_colors=$(tput sgr0 2>/dev/null) || reset_colors=
     yellow=$(tput setaf 3 2>/dev/null) || yellow=
     green=$(tput setaf 2 2>/dev/null) || green=
     cyan=$(tput setaf 6 2>/dev/null) || cyan=
+
+    # Set up color variables only if we got the reset sequence
+    if [ -n "$reset_colors" ]; then
+      lc=$reset_colors$bold$yellow  # labels
+      uc=$reset_colors$bold$green   # username
+      hc=$reset_colors$bold$cyan    # hostname
+      ic=$reset_colors              # information
+    else
+      lc= uc= hc= ic=  # no colors if reset isn't available
+    fi
   else
-    local bold= reset= yellow= green= cyan=
+    lc= uc= hc= ic=  # no colors if conditions aren't met
   fi
 
-  lc=$reset$bold$yellow  # labels
-  uc=$reset$bold$green   # username
-  hc=$reset$bold$cyan    # hostname
-  ic=$reset              # information
+  # Export the reset sequence for the trap
+  export reset_colors=${reset_colors:-}
 }
 
 get_uptime() {
