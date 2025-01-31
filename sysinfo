@@ -60,13 +60,12 @@ version() {
 
 setup_colors() {
   if [ ${USE_COLOR:-1} -eq 1 ] && [ -t 1 ] && command -v tput >/dev/null 2>&1; then
-    local reset_colors
     ORIG_TERM_STATE=$(stty -g)
-    reset_colors=$(tput sgr0 2>/dev/null) || reset_colors=
-    bold=$(tput bold 2>/dev/null) || bold=
-    yellow=$(tput setaf 3 2>/dev/null) || yellow=
-    green=$(tput setaf 2 2>/dev/null) || green=
-    cyan=$(tput setaf 6 2>/dev/null) || cyan=
+    reset_colors=$(tput sgr0)
+    bold=$(tput bold)
+    yellow=$(tput setaf 3)
+    green=$(tput setaf 2)
+    cyan=$(tput setaf 6)
 
     # Set up color variables only if we got the reset sequence
     if [ -n "$reset_colors" ]; then
@@ -80,9 +79,6 @@ setup_colors() {
   else
     bold= lc= uc= hc= ic=  # no colors if conditions aren't met
   fi
-
-  # Export the reset sequence for the trap
-  export reset_colors=${reset_colors:-}
 }
 
 get_uptime() {
